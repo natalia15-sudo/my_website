@@ -1,1 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Efisiensi Bangunan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gradient-to-r from-blue-100 to-blue-400 min-h-screen flex items-center justify-center p-4">
 
+<div class="bg-white shadow-xl rounded-xl p-6 w-full max-w-3xl">
+    <h1 class="text-2xl font-bold text-blue-900 mb-4 text-center">Kalkulator OTTV</h1>
+    <p class="text-gray-600 text-center mb-6">Alat sederhana untuk menghitung kebutuhan pendinginan bangunan</p>
+
+    <!-- Bagian Input -->
+    <div class="space-y-5">
+        <!-- Shading Device -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+            <h2 class="font-semibold text-blue-900 mb-3">🏗️ Jenis Pelindung Jendela</h2>
+            <select id="shading" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="0.7">Overhang 1m: Atap tambahan di atas jendela</option>
+                <option value="0.6">Vertical Louvers: Bilah vertikal seperti jari-jari</option>
+                <option value="0.5">Horizontal Louvers: Bilah horizontal seperti daun jendela</option>
+                <option value="0.4">Kisi-kisi Aluminium: Jaring aluminium untuk teduhan</option>
+                <option value="0.3">Tirai Reflektif: Tirai khusus pantul panas</option>
+                <option value="1.0">Tanpa Pelindung: Jendela polos tanpa perangkat tambahan</option>
+            </select>
+            <p class="text-sm text-gray-500 mt-2">Pelindung jendela membantu mengurangi panas masuk.</p>
+        </div>
+
+        <!-- Rasio Jendela -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+            <h2 class="font-semibold text-blue-900 mb-3">🪟 Persentase Jendela</h2>
+            <input id="wwr" type="number" step="0.01" min="0" max="1" placeholder="0.3" class="w-full p-3 border border-gray-300 rounded-lg">
+            <p class="text-sm text-gray-500 mt-2">Contoh: 0.3 = 30% dinding adalah jendela</p>
+        </div>
+
+        <!-- Suhu & Insulasi -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h2 class="font-semibold text-blue-900 mb-3">🌡️ Beda Suhu Dalam-Luar</h2>
+                <input id="deltaT" type="number" step="0.1" placeholder="2" class="w-full p-3 border border-gray-300 rounded-lg">
+                <p class="text-sm text-gray-500 mt-2">Rata-rata selisih suhu ruangan dengan luar</p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h2 class="font-semibold text-blue-900 mb-3">🧱 Kualitas Dinding</h2>
+                <input id="uWall" type="number" step="0.1" placeholder="2.5" class="w-full p-3 border border-gray-300 rounded-lg">
+                <p class="text-sm text-gray-500 mt-2">Angka lebih kecil = dinding lebih kedap panas</p>
+            </div>
+        </div>
+
+        <!-- Kualitas Jendela -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+            <h2 class="font-semibold text-blue-900 mb-3">🪟 Kualitas Jendela</h2>
+            <input id="uWindow" type="number" step="0.1" placeholder="5.8" class="w-full p-3 border border-gray-300 rounded-lg">
+            <p class="text-sm text-gray-500 mt-2">Contoh: Kaca biasa = 5.8, Kaca hemat energi = 1.8</p>
+        </div>
+
+        <!-- Arah Bangunan -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+            <h2 class="font-semibold text-blue-900 mb-3">🧭 Arah Hadap Bangunan</h2>
+            <select id="radiasi" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="150">Utara: Sedikit sinar matahari (150 W/m²)</option>
+                <option value="180">Timur: Matahari pagi (180 W/m²)</option>
+                <option value="250">Selatan: Panas sedang (250 W/m²)</option>
+                <option value="280">Barat: Panas terik sore (280 W/m²)</option>
+            </select>
+            <p class="text-sm text-gray-500 mt-2">Barat = Paling panas di siang/sore hari</p>
+        </div>
+    </div>
+
+    <!-- Tombol Hitung -->
+    <div class="mt-6 flex justify-center">
+        <button onclick="hitungOTTV()" class="bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition transform hover:scale-105">
+            🔍 Hitung Sekarang
+        </button>
+    </div>
+
+    <!-- Hasil -->
+    <div class="mt-6 p-4 rounded-lg" id="hasilContainer">
+        <p id="hasil" class="text-xl font-bold text-center py-4">Hasil akan muncul di sini</p>
+        <p class="text-sm text-gray-600 text-center">Nilai baik ≤45 W/m² (hemat AC)</p>
+    </div>
+
+    <!-- Grafik -->
+    <div class="mt-6">
+        <canvas id="chartOTTV"></canvas>
+    </div>
+</div>
+
+<script>
+    let myChart = null;
+
+    function hitungOTTV() {
+        // Ambil nilai input
+        const wwr = parseFloat(document.getElementById("wwr").value) || 0;
+        const deltaT = parseFloat(document.getElementById("deltaT").value) || 0;
+        const uWall = parseFloat(document.getElementById("uWall").value) || 0;
+        const uWindow = parseFloat(document.getElementById("uWindow").value) || 0;
+        const shading = parseFloat(document.getElementById("shading").value);
+        const radiasi = parseFloat(document.getElementById("radiasi").value);
+
+        // Hitung OTTV
+        const panasDinding = (1 - wwr) * uWall * deltaT;
+        const panasJendela = wwr * uWindow * deltaT;
+        const panasMatahari = wwr * shading * radiasi;
+        const totalOTTV = panasDinding + panasJendela + panasMatahari;
+
+        // Tampilkan hasil
+        const hasilElement = document.getElementById("hasil");
+        hasilElement.innerHTML = `🔋 <span class="text-2xl">${totalOTTV.toFixed(1)} W/m²</span>`;
+
+        // Ubah warna berdasarkan efisiensi
+        const container = document.getElementById("hasilContainer");
+        container.className = totalOTTV <= 45 ?
+            "mt-6 p-4 bg-green-100 rounded-lg" :
+            "mt-6 p-4 bg-red-100 rounded-lg";
+
+        // Update grafik
+        updateChart(totalOTTV);
+    }
+
+    function updateChart(value) {
+        const ctx = document.getElementById('chartOTTV').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Kebutuhan Pendinginan'],
+                datasets: [{
+                    label: 'Nilai OTTV',
+                    data: [value],
+                    backgroundColor: value <= 45 ?
+                        'rgba(75, 192, 192, 0.5)' :
+                        'rgba(255, 99, 132, 0.5)',
+                    borderColor: value <= 45 ?
+                        'rgb(75, 192, 192)' :
+                        'rgb(255, 99, 132)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { text: 'Kebutuhan Energi (W/m²)', display: true }
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
